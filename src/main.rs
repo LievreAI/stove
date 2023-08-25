@@ -12,7 +12,11 @@ async fn main() {
         ))
         .build(&events)
         .unwrap();
-    let instance = wgpu::Instance::default();
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        // vulkan runs out of memory with too many buffers quite early compared to other backends
+        backends: wgpu::Backends::DX12 | wgpu::Backends::METAL | wgpu::Backends::BROWSER_WEBGPU,
+        ..Default::default()
+    });
     let surface = unsafe { instance.create_surface(&window) }.unwrap();
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions {
