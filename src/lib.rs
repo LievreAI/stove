@@ -1165,10 +1165,9 @@ impl Stove {
                                     self.selected
                                         .sort_unstable_by_key(|key| std::cmp::Reverse(*key));
                                     for i in self.selected.iter().copied() {
-                                        self.actors[i].delete(self.map.as_mut().unwrap());
-                                        self.notifs
-                                            .success(format!("deleted {}", &self.actors[i].name));
-                                        self.actors.remove(i);
+                                        let target = self.actors.remove(i);
+                                        target.delete(&mut self.actors, self.map.as_mut().unwrap());
+                                        self.notifs.success(format!("deleted {}", &target.name));
                                     }
                                     self.selected.clear();
                                 }
