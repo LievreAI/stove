@@ -86,6 +86,22 @@ async fn main() {
         if let Event::WindowEvent { event, .. } = &event {
             let _ = platform.on_event(&ctx, event);
         }
+        let mut refresh = |new: winit::dpi::PhysicalSize<u32>, factor: f64| {
+            if new.width == 0 || new.height == 0 {
+                return;
+            }
+            size = new;
+            config.width = size.width;
+            config.height = size.height;
+            surface.configure(&device, &config);
+            (depth, tex) = make_tex(&device, &config, samples, format);
+            screen = egui_wgpu::renderer::ScreenDescriptor {
+                size_in_pixels: [size.width, size.height],
+                pixels_per_point: factor as f32,
+            };
+            #[cfg(target_os = "macos")]
+            window.request_redraw();
+        };
         match event {
             Event::RedrawRequested(_) => {
                 let Ok(frame) = surface.get_current_texture() else {
@@ -143,24 +159,17 @@ async fn main() {
             }
             Event::MainEventsCleared => window.request_redraw(),
             Event::WindowEvent {
+                event:
+                    WindowEvent::ScaleFactorChanged {
+                        scale_factor,
+                        new_inner_size,
+                    },
+                ..
+            } => refresh(*new_inner_size, scale_factor),
+            Event::WindowEvent {
                 event: WindowEvent::Resized(new),
                 ..
-            } => {
-                if new.width == 0 || new.height == 0 {
-                    return;
-                }
-                size = new;
-                config.width = size.width;
-                config.height = size.height;
-                surface.configure(&device, &config);
-                (depth, tex) = make_tex(&device, &config, samples, format);
-                screen = egui_wgpu::renderer::ScreenDescriptor {
-                    size_in_pixels: [size.width, size.height],
-                    pixels_per_point: window.scale_factor() as f32,
-                };
-                #[cfg(target_os = "macos")]
-                window.request_redraw();
-            }
+            } => refresh(new, window.scale_factor()),
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
