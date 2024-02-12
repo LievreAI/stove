@@ -36,21 +36,20 @@ pub fn follow(
                     });
                     match &actor.draw_type {
                         actor::DrawType::Mesh(path) => {
-                            let (mesh, material) = &registry.0[path];
-                            commands.spawn((
-                                actor::SelectedBundle::default(),
-                                MaterialMeshBundle {
-                                    mesh: mesh.clone_weak(),
-                                    material: material
-                                        .first()
-                                        .map(Handle::clone_weak)
-                                        .unwrap_or(consts.grid.clone_weak()),
-                                    transform: actor.transform(map),
-                                    ..default()
-                                },
-                                bevy_mod_raycast::deferred::RaycastMesh::<()>::default(),
-                                new,
-                            ));
+                            let transform = actor.transform(map);
+                            commands.spawn(new).with_children(|builder| {
+                                for (mesh, material) in &registry.0[path] {
+                                    builder.spawn((
+                                        MaterialMeshBundle {
+                                            mesh: mesh.clone_weak(),
+                                            material: material.clone_weak(),
+                                            transform,
+                                            ..default()
+                                        },
+                                        bevy_mod_raycast::deferred::RaycastMesh::<()>::default(),
+                                    ));
+                                }
+                            });
                         }
                         actor::DrawType::Cube => {
                             commands

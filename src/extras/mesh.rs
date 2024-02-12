@@ -91,7 +91,7 @@ pub fn get_mesh_info<C: io::Read + io::Seek>(
     Vec<u32>,
     Vec<Vec<bevy::math::Vec2>>,
     Vec<String>,
-    Vec<(u32, u32)>,
+    Vec<(usize, usize, usize)>,
 )> {
     // get the static mesh
     let Some(mesh) = asset.asset_data.exports.iter().find(|ex| {
@@ -178,18 +178,19 @@ pub fn get_mesh_info<C: io::Read + io::Seek>(
     let mut mat_data = Vec::with_capacity(data.read_u32::<LE>()? as usize);
     // array of sections
     for _ in 0..mat_data.capacity() {
-        mat_data.push((
-            // mat index
-            data.read_u32::<LE>()?,
-            // first index
-            data.read_u32::<LE>()?,
-        ));
+        // mat index
+        let i = data.read_u32::<LE>()?;
+        // first index
+        data.read_u32::<LE>()?;
         // tri count
         data.read_u32::<LE>()?;
-        // min vertex index
-        data.read_u32::<LE>()?;
-        // max vertex index
-        data.read_u32::<LE>()?;
+        mat_data.push((
+            i as usize,
+            // min vertex index
+            data.read_u32::<LE>()? as usize,
+            // max vertex index
+            data.read_u32::<LE>()? as usize,
+        ));
         // collides
         data.read_u32::<LE>()?;
         // casts shadow

@@ -49,7 +49,7 @@ enum Dialog {
 struct Notifs(egui_notify::Toasts);
 
 #[derive(Default, Resource)]
-struct Registry(std::collections::BTreeMap<String, (Handle<Mesh>, Vec<Handle<StandardMaterial>>)>);
+struct Registry(std::collections::BTreeMap<String, Vec<(Handle<Mesh>, Handle<StandardMaterial>)>>);
 
 #[derive(Default, Resource)]
 struct Focus(Option<Vec3>);

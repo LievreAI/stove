@@ -110,101 +110,89 @@ pub fn respond(
                                                 .map(|mesh| (mesh, pak_file, pak))
                                             }) {
                                                 Some((
-                                                    (positions, indices, uvs, mats, _mat_data),
+                                                    (positions, indices, uvs, mats, mat_data),
                                                     pak_file,
                                                     pak,
                                                 )) => {
-                                                    registry.0.insert(path.clone(), (
-                                                        meshes.add(
-                                                            Mesh::new(bevy::render::render_resource::PrimitiveTopology::TriangleList)
-                                                                .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
-                                                                .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs.into_iter().map(|uv| uv[0]).collect::<Vec<_>>())
-                                                                .with_indices(Some(bevy::render::mesh::Indices::U32(indices)))
-                                                        ),
-                                                        match appdata.textures {
-                                                            true => {
-                                                                let mats: Vec<_> = mats
-                                                                    .into_iter()
-                                                                    .map(|path| {
-                                                                        match asset::get(
+                                                    registry.0.insert(
+                                                        path.clone(),
+                                                        mat_data
+                                                            .into_iter()
+                                                            .map(|(i, min, max)| (
+                                                                meshes.add(
+                                                                    Mesh::new(bevy::render::render_resource::PrimitiveTopology::TriangleList)
+                                                                        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions[min..=max].to_vec())
+                                                                        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs.iter().map(|uv| uv[i - 1]).collect::<Vec<_>>())
+                                                                        .with_indices(Some(bevy::render::mesh::Indices::U32(indices[min..=max].to_vec()))),
+                                                                ),
+                                                                match appdata.textures {
+                                                                    true => {
+                                                                        let texture = match asset::get(
                                                                             pak,
                                                                             pak_file,
                                                                             cache.as_deref(),
-                                                                            &path,
+                                                                            &mats[i],
                                                                             version,
-                                                                            |mat, _| Ok(extras::get_tex_paths(mat)),
-                                                                        ) {
-                                                                            Ok(paths) => {
-                                                                                paths.into_iter().find_map(|path|
-                                                                                    match asset::get(
-                                                                                        pak,
-                                                                                        pak_file,
-                                                                                        cache.as_deref(),
-                                                                                        &path,
-                                                                                        version,
-                                                                                        |tex, bulk| {
-                                                                                            Ok(extras::get_tex_info(tex, bulk)?)
-                                                                                        },
-                                                                                    ) {
-                                                                                        Ok((false, x, y, data)) => Some((x,y,data)),
-                                                                                        Ok((true, ..)) => None,
-                                                                                        Err(e) => {
-                                                                                            notif.send(
-                                                                                                Notif {
-                                                                                                    message: format!(
-                                                                                                        "{}: {e}",
-                                                                                                        path.split('/')
-                                                                                                            .last()
-                                                                                                            .unwrap_or_default()
-                                                                                                    ),
-                                                                                                    kind: Warning
-                                                                                                }
-                                                                                            );
-                                                                                            None
-                                                                                        }
-                                                                                    }
-                                                                                )
+                                                                            |tex, bulk| {
+                                                                                Ok(extras::get_tex_info(tex, bulk)?)
                                                                             },
-                                                                            _ => None,
-                                                                        }
-                                                                    })
-                                                                    .collect();
-                                                                    mats.into_iter().flatten().map(|(width, height, data)| {
-                                                                        materials.add(StandardMaterial {
-                                                                            base_color_texture: Some(images.add(Image {
-                                                                                data,
-                                                                                texture_descriptor: bevy::render::render_resource::TextureDescriptor {
-                                                                                    label: None,
-                                                                                    size: bevy::render::render_resource::Extent3d {
-                                                                                        width,
-                                                                                        height,
-                                                                                        depth_or_array_layers: 1,
-                                                                                    },
-                                                                                    mip_level_count: 1,
-                                                                                    sample_count: 1,
-                                                                                    dimension: bevy::render::render_resource::TextureDimension::D2,
-                                                                                    format: bevy::render::render_resource::TextureFormat::Rgba8Unorm,
-                                                                                    usage: bevy::render::render_resource::TextureUsages::TEXTURE_BINDING,
-                                                                                    view_formats: &[bevy::render::render_resource::TextureFormat::Rgba8Unorm],
-                                                                                },
-                                                                                sampler: bevy::render::texture::ImageSampler::Descriptor(
-                                                                                    bevy::render::texture::ImageSamplerDescriptor {
-                                                                                        address_mode_u: bevy::render::texture::ImageAddressMode::Repeat,
-                                                                                        address_mode_v: bevy::render::texture::ImageAddressMode::Repeat,
-                                                                                        address_mode_w: bevy::render::texture::ImageAddressMode::Repeat,
+                                                                        ) {
+                                                                            Ok((false, x, y, data)) => Some((x,y,data)),
+                                                                            Ok((true, ..)) => None,
+                                                                            Err(e) => {
+                                                                                notif.send(
+                                                                                    Notif {
+                                                                                        message: format!(
+                                                                                            "{}: {e}",
+                                                                                            path.split('/')
+                                                                                                .last()
+                                                                                                .unwrap_or_default()
+                                                                                        ),
+                                                                                        kind: Warning
+                                                                                    }
+                                                                                );
+                                                                                None
+                                                                            }
+                                                                        };
+                                                                        match texture {
+                                                                                Some((width, height, data)) => materials.add(StandardMaterial {
+                                                                                    base_color_texture: Some(images.add(Image {
+                                                                                        data,
+                                                                                        texture_descriptor: bevy::render::render_resource::TextureDescriptor {
+                                                                                            label: None,
+                                                                                            size: bevy::render::render_resource::Extent3d {
+                                                                                                width,
+                                                                                                height,
+                                                                                                depth_or_array_layers: 1,
+                                                                                            },
+                                                                                            mip_level_count: 1,
+                                                                                            sample_count: 1,
+                                                                                            dimension: bevy::render::render_resource::TextureDimension::D2,
+                                                                                            format: bevy::render::render_resource::TextureFormat::Rgba8Unorm,
+                                                                                            usage: bevy::render::render_resource::TextureUsages::TEXTURE_BINDING,
+                                                                                            view_formats: &[bevy::render::render_resource::TextureFormat::Rgba8Unorm],
+                                                                                        },
+                                                                                        sampler: bevy::render::texture::ImageSampler::Descriptor(
+                                                                                            bevy::render::texture::ImageSamplerDescriptor {
+                                                                                                address_mode_u: bevy::render::texture::ImageAddressMode::Repeat,
+                                                                                                address_mode_v: bevy::render::texture::ImageAddressMode::Repeat,
+                                                                                                address_mode_w: bevy::render::texture::ImageAddressMode::Repeat,
+                                                                                                ..default()
+                                                                                            },
+                                                                                        ),
                                                                                         ..default()
-                                                                                    },
-                                                                                ),
-                                                                                ..default()
-                                                                            })),
-                                                                            unlit: true,
-                                                                            ..default()
-                                                                        })
-                                                                    }).collect()
-                                                            },
-                                                            false => vec![consts.grid.clone_weak()],
-                                                        }
-                                                    ));
+                                                                                    })),
+                                                                                    unlit: true,
+                                                                                    ..default()
+                                                                                }),
+                                                                            None => consts.grid.clone_weak(),
+                                                                        }
+                                                                    },
+                                                                    false => consts.grid.clone_weak(),
+                                                                }
+                                                            ))
+                                                            .collect(),
+                                                    );
                                                 }
                                                 None => {
                                                     notif.send(Notif {
@@ -221,17 +209,21 @@ pub fn respond(
                                     }
                                     match &actor.draw_type {
                                         actor::DrawType::Mesh(path) => {
-                                            let (mesh, material) = &registry.0[path];
-                                            commands.spawn((
-                                                MaterialMeshBundle {
-                                                    mesh: mesh.clone_weak(),
-                                                    material: material.first().map(Handle::clone_weak).unwrap_or(consts.grid.clone_weak()),
-                                                    transform: actor.transform(&asset),
-                                                    ..default()
-                                                },
-                                                bevy_mod_raycast::deferred::RaycastMesh::<()>::default(),
-                                                actor
-                                            ));
+                                            let transform = actor.transform(&asset);
+                                            let entry = &registry.0[path];
+                                            commands.spawn(actor).with_children(|builder| {
+                                                for (mesh, material) in entry {
+                                                    builder.spawn((
+                                                        MaterialMeshBundle {
+                                                            mesh: mesh.clone_weak(),
+                                                            material: material.clone_weak(),
+                                                            transform,
+                                                            ..default()
+                                                        },
+                                                        bevy_mod_raycast::deferred::RaycastMesh::<()>::default(),
+                                                    ));
+                                                }
+                                            });
                                         }
                                         actor::DrawType::Cube => {
                                             commands.spawn((
